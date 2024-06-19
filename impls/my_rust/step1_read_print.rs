@@ -9,8 +9,16 @@ use reader::*;
 use rustyline::{error::ReadlineError, DefaultEditor};
 use types::*;
 
-fn read(input: &str) -> MalType {
-    read_str(input)
+fn read(rl: &mut DefaultEditor) -> Result<MalType, ReadlineError> {
+    let line = rl.readline("user> ")?;
+    rl.add_history_entry(&line).unwrap(); // TODO(mhs): remove unwrap
+    rl.save_history(".mal-history").unwrap(); // TODO(mhs): remove unwrap
+
+    if !line.is_empty() {
+        Ok(read_str(line.as_str()))
+    } else {
+        Err(ReadlineError::Eof)
+    }
 }
 
 fn eval(ast: MalType) -> MalType {
@@ -21,10 +29,10 @@ fn print(res: MalType) -> String {
     pr_str(res)
 }
 
-fn rep(input: &str) -> String {
-    let ast = read(input);
+fn rep(rl: &mut DefaultEditor) -> Result<String, ReadlineError> {
+    let ast = read(rl)?;
     let result = eval(ast);
-    print(result)
+    Ok(print(result))
 }
 
 pub fn main() {
@@ -32,16 +40,9 @@ pub fn main() {
     let _ = rl.load_history(".mal-history");
 
     loop {
-        let readline = rl.readline("user> ");
-        match readline {
+        match rep(&mut rl) {
             Ok(line) => {
-                rl.add_history_entry(&line).unwrap(); // TODO(mhs): remove unwrap
-                rl.save_history(".mal-history").unwrap(); // TODO(mhs): remove unwrap
-                if !line.is_empty() {
-                    let output = rep(&line);
-                    // print result
-                    println!("{output}");
-                }
+                println!("{line}");
             }
             Err(ReadlineError::Interrupted) => continue,
             Err(ReadlineError::Eof) => break,

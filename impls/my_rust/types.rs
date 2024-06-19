@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Debug)]
 pub enum MalType {
     List(Vec<MalType>),
     Vector(Vec<MalType>),
@@ -14,6 +14,8 @@ pub enum MalType {
     Unqoute(Box<MalType>),
     Deref(Box<MalType>),
     WithMeta(Box<MalType>, Box<MalType>),
+    Function(*const dyn std::any::Any),
+    None,
 }
 
 impl Display for MalType {
@@ -83,6 +85,8 @@ impl Display for MalType {
                 let meta = meta.as_ref().to_string();
                 write!(fmt, "(with-meta {meta} {var})")
             }
+            MalType::Function(_) => todo!(),
+            MalType::None => write!(fmt, " "),
         }
     }
 }

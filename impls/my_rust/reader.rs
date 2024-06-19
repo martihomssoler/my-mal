@@ -1,4 +1,4 @@
-use std::{collections::VecDeque, fmt::Display};
+use std::collections::VecDeque;
 
 use crate::{MalType, Operator, Token, TokenKind};
 
@@ -132,7 +132,7 @@ fn tokenize(source: &str) -> VecDeque<Token> {
             '/' => TokenKind::Operator(Operator::Slash),
             '"' => parse_string(c, &mut iter, &mut col),
             ';' => {
-                while let Some(nt) = iter.next() {
+                for nt in iter.by_ref() {
                     if '\n'.eq(&nt) {
                         break;
                     }
