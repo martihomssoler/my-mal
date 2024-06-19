@@ -3,6 +3,7 @@ name = "my_rust"
 version = "0.1.0"
 
 [dependencies]
+rustyline = "14.0.0"
 
 
 [[bin]]

@@ -1,4 +1,6 @@
-use std::io::Write;
+extern crate rustyline;
+
+use rustyline::{error::ReadlineError, DefaultEditor};
 
 fn read(input: &str) -> &str {
     input
@@ -19,24 +21,27 @@ fn rep(input: &str) -> &str {
 }
 
 pub fn main() {
-    loop {
-        // print prompt
-        print!("user> ");
-        // get input line
-        let Ok(input) = get_line() else {
-            break;
-        };
-        // call rep
-        let output = rep(&input);
-        // print result
-        println!("{output}");
-    }
-}
+    let mut rl = DefaultEditor::new().unwrap(); // TODO(mhs): remove unwrap
+    let _ = rl.load_history(".my-mal-history");
 
-fn get_line() -> std::io::Result<String> {
-    std::io::stdout().flush()?;
-    let mut buffer = String::new();
-    let stdin = std::io::stdin(); // We get `Stdin` here.
-    stdin.read_line(&mut buffer)?;
-    Ok(buffer.trim_end().to_owned())
+    loop {
+        let readline = rl.readline("user> ");
+        match readline {
+            Ok(line) => {
+                rl.add_history_entry(&line).unwrap(); // TODO(mhs): remove unwrap
+                rl.save_history(".mal-history").unwrap(); // TODO(mhs): remove unwrap
+                if !line.is_empty() {
+                    let output = rep(&line);
+                    // print result
+                    println!("{output}");
+                }
+            }
+            Err(ReadlineError::Interrupted) => continue,
+            Err(ReadlineError::Eof) => break,
+            Err(err) => {
+                println!("Error: {:?}", err);
+                break;
+            }
+        }
+    }
 }
