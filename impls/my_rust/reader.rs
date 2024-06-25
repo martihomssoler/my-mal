@@ -75,7 +75,7 @@ fn read_atom(tokens: &mut VecDeque<Token>) -> MalType {
     match tokens.pop_front() {
         Some(token) => match token.kind {
             TokenKind::Number(n) => MalType::Number(n),
-            TokenKind::Identifier(id) => MalType::Identifier(id),
+            TokenKind::Identifier(id) => MalType::Symbol(id),
             _ => MalType::Symbol(token.kind.to_string()),
         },
         None => todo!(),
@@ -164,10 +164,6 @@ fn tokenize(source: &str) -> VecDeque<Token> {
                 let value = number.parse::<i64>().unwrap();
                 TokenKind::Number(value)
             }
-            c if c.is_alphabetic() => {
-                let id = parse_identifier(c, &mut iter, &mut col);
-                TokenKind::Identifier(id)
-            } // _ => panic!("Unexpected character {c:?}"),
             c => parse_symbol(c, &mut iter, &mut col),
         };
 

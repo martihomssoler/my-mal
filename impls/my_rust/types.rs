@@ -1,22 +1,27 @@
-use std::fmt::Display;
+use std::{any::Any, ffi::c_void, fmt::Display};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum MalType {
+    // collections
     List(Vec<MalType>),
     Vector(Vec<MalType>),
     Dictionary(Vec<MalType>),
+    // primitives
     Number(i64),
-    Identifier(String),
     Symbol(String),
+    Function(*const dyn Fn(usize, *const MalType) -> MalType),
+    // Special symbols
     Quote(Box<MalType>),
     SpliceUnquote(Box<MalType>),
     Quasiquote(Box<MalType>),
     Unqoute(Box<MalType>),
     Deref(Box<MalType>),
     WithMeta(Box<MalType>, Box<MalType>),
-    Function(*const dyn std::any::Any),
     None,
 }
+
+unsafe impl Send for MalType {}
+unsafe impl Sync for MalType {}
 
 impl Display for MalType {
     fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -58,7 +63,6 @@ impl Display for MalType {
                 write!(fmt, "{{{res}}}")
             }
             MalType::Number(n) => write!(fmt, "{n}"),
-            MalType::Identifier(id) => write!(fmt, "{id}"),
             MalType::Symbol(s) => write!(fmt, "{s}"),
             MalType::Quote(quote) => {
                 let res = quote.as_ref().to_string();
@@ -86,7 +90,7 @@ impl Display for MalType {
                 write!(fmt, "(with-meta {meta} {var})")
             }
             MalType::Function(_) => todo!(),
-            MalType::None => write!(fmt, " "),
+            MalType::None => Ok(()),
         }
     }
 }

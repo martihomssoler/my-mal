@@ -12,8 +12,8 @@ use rustyline::{error::ReadlineError, DefaultEditor};
 use std::sync::Mutex;
 use types::*;
 
-pub static ENV: Lazy<Mutex<env::ReplEnv>> = Lazy::new(|| {
-    let env = env::ReplEnv::default();
+pub static ENV: Lazy<Mutex<env::Env>> = Lazy::new(|| {
+    let env = env::Env::new(None);
     Mutex::new(env)
 });
 
@@ -46,22 +46,23 @@ fn eval(ast: MalType) -> MalType {
             let MalType::Function(ref b) = evaled_list[0] else {
                 return MalType::None;
             };
-            let func: *const env::FuncPtr<i64> = b.cast();
-            // println!("-> func is {func:?}");
+            // let func: *const env::FuncPtr<i64> = b.cast();
+            // // println!("-> func is {func:?}");
 
-            let owned_args = evaled_list
-                .into_iter()
-                .skip(1)
-                .map(coerse_to_i64)
-                .collect::<Vec<_>>();
-            // println!("-> args are {owned_args:?}");
-            let n = owned_args.len();
-            let args: *const i64 = owned_args.as_ptr();
+            // let owned_args = evaled_list
+            //     .into_iter()
+            //     .skip(1)
+            //     .map(coerse_to_i64)
+            //     .collect::<Vec<_>>();
+            // // println!("-> args are {owned_args:?}");
+            // let n = owned_args.len();
+            // let args: *const i64 = owned_args.as_ptr();
 
-            let res = unsafe { (*func)(n, args) };
-            // println!("==> res is {res:?}");
+            // let res = unsafe { (*func)(n, args) };
+            // // println!("==> res is {res:?}");
 
-            MalType::Number(res)
+            // MalType::Number(res)
+            MalType::None
         }
         _ => eval_ast(ast),
     }
@@ -79,11 +80,11 @@ fn eval_ast(ast: MalType) -> MalType {
     match ast {
         MalType::Symbol(s) => {
             // lookup symbol and return value or raise error
-            if let Some(func) = ENV.lock().unwrap().symbols.get(s.as_str()) {
-                MalType::Function(func as *const dyn std::any::Any)
-            } else {
-                panic!("Undefined symbol {s:?}")
-            }
+            // if let Some(func) = ENV.lock().unwrap().symbols.get(s.as_str()) {
+            //     MalType::Function(func as *const dyn std::any::Any)
+            // } else {
+            panic!("Undefined symbol {s:?}")
+            // }
         }
         MalType::Vector(vector) => {
             let mut res = Vec::new();

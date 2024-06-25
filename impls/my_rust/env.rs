@@ -1,31 +1,164 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, ops::Deref};
 
-pub type FuncPtr<T> = fn(usize, *const T) -> T;
+use crate::MalType;
+use functions::*;
 
-fn apply(func: impl Fn(i64, i64) -> i64, n: usize, args: *const i64) -> i64 {
-    let mut res = unsafe { *args.add(0) };
-
-    (1..n).for_each(|i| {
-        let arg = unsafe { *args.add(i) };
-        res = func(res, arg);
-    });
-
-    res
+#[derive(Clone, Debug)]
+pub struct Env {
+    data: HashMap<String, MalType>,
+    outer: Box<Option<Env>>,
 }
 
-pub struct ReplEnv {
-    pub symbols: HashMap<&'static str, FuncPtr<i64>>,
-}
-
-impl Default for ReplEnv {
+impl Default for Env {
     fn default() -> Self {
-        let mut symbols = HashMap::new();
+        let mut env = Env::new(None);
 
-        symbols.insert("+", (|n, args| apply(|a, b| a + b, n, args)) as _);
-        symbols.insert("-", (|n, args| apply(|a, b| a - b, n, args)) as _);
-        symbols.insert("*", (|n, args| apply(|a, b| a * b, n, args)) as _);
-        symbols.insert("/", (|n, args| apply(|a, b| a / b, n, args)) as _);
+        env.set("+", MalType::Function(&|c, a| -> MalType { add(c, a) }));
+        env.set("-", MalType::Function(&|c, a| -> MalType { sub(c, a) }));
+        env.set("*", MalType::Function(&|c, a| -> MalType { mul(c, a) }));
+        env.set("/", MalType::Function(&|c, a| -> MalType { div(c, a) }));
 
-        Self { symbols }
+        env
+    }
+}
+
+impl Env {
+    pub fn new(outer: Option<Env>) -> Env {
+        Self {
+            data: HashMap::new(),
+            outer: Box::new(outer),
+        }
+    }
+
+    pub fn set(&mut self, k: &str, v: MalType) {
+        self.data.insert(k.to_owned(), v);
+    }
+
+    pub fn find(&self, k: &str) -> Option<&Env> {
+        if self.data.contains_key(k) {
+            Some(self)
+        } else if let Some(outer) = self.outer.deref() {
+            outer.find(k)
+        } else {
+            None
+        }
+    }
+
+    pub fn get(&self, k: &str) -> Option<&MalType> {
+        if let Some(env) = self.find(k) {
+            env.data.get(k)
+        } else {
+            None
+        }
+    }
+}
+
+// TODO(mhs): Handle exceptions like divide by zero
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
+pub mod functions {
+    use super::*;
+
+    pub fn add(argc: usize, argv: *const MalType) -> MalType {
+        if argc == 0 {
+            return MalType::None;
+        }
+
+        let mut res = unsafe {
+            let MalType::Number(arg) = *argv.add(0) else {
+                return MalType::None;
+            };
+
+            arg
+        };
+
+        for i in 1..argc {
+            unsafe {
+                let MalType::Number(arg) = *argv.add(i) else {
+                    return MalType::None;
+                };
+
+                res += arg;
+            };
+        }
+
+        MalType::Number(res)
+    }
+
+    pub fn sub(argc: usize, argv: *const MalType) -> MalType {
+        if argc == 0 {
+            return MalType::None;
+        }
+
+        let mut res = unsafe {
+            let MalType::Number(arg) = *argv.add(0) else {
+                return MalType::None;
+            };
+
+            arg
+        };
+
+        for i in 1..argc {
+            unsafe {
+                let MalType::Number(arg) = *argv.add(i) else {
+                    return MalType::None;
+                };
+
+                res -= arg;
+            };
+        }
+
+        MalType::Number(res)
+    }
+
+    pub fn mul(argc: usize, argv: *const MalType) -> MalType {
+        if argc == 0 {
+            return MalType::None;
+        }
+
+        let mut res = unsafe {
+            let MalType::Number(arg) = *argv.add(0) else {
+                return MalType::None;
+            };
+
+            arg
+        };
+
+        for i in 1..argc {
+            unsafe {
+                let MalType::Number(arg) = *argv.add(i) else {
+                    return MalType::None;
+                };
+
+                res *= arg;
+            };
+        }
+
+        MalType::Number(res)
+    }
+
+    pub fn div(argc: usize, argv: *const MalType) -> MalType {
+        if argc == 0 {
+            return MalType::None;
+        }
+
+        let mut res = unsafe {
+            let MalType::Number(arg) = *argv.add(0) else {
+                return MalType::None;
+            };
+
+            arg
+        };
+
+        for i in 1..argc {
+            unsafe {
+                let MalType::Number(arg) = *argv.add(i) else {
+                    return MalType::None;
+                };
+
+                res /= arg;
+            };
+        }
+
+        MalType::Number(res)
     }
 }
