@@ -1,5 +1,73 @@
 use crate::MalType;
 
-pub fn pr_str(mal_type: MalType) -> String {
-    mal_type.to_string()
+pub fn print_string(mal_type: &MalType, print_readably: bool) -> String {
+    match mal_type {
+        MalType::List(seq) => print_seq(seq, print_readably, "(", ")", " "),
+        MalType::Vector(seq) => print_seq(seq, print_readably, "[", "]", " "),
+        MalType::Dictionary(seq) => print_seq(seq, print_readably, "{", "}", " "),
+        MalType::Quote(quote) => {
+            let res = print_string(quote.as_ref(), true);
+            format!("(quote {res})")
+        }
+        MalType::SpliceUnquote(splice_unquote) => {
+            let res = print_string(splice_unquote.as_ref(), true);
+            format!("(splice-unquote {res})")
+        }
+        MalType::Quasiquote(quasiquote) => {
+            let res = print_string(quasiquote.as_ref(), true);
+            format!("(quasiquote {res})")
+        }
+        MalType::Unqoute(unquote) => {
+            let res = print_string(unquote.as_ref(), true);
+            format!("(unquote {res})")
+        }
+        MalType::Deref(var) => {
+            let res = print_string(var.as_ref(), true);
+            format!("(deref {res})")
+        }
+        MalType::WithMeta(var, meta) => {
+            let var = print_string(var.as_ref(), true);
+            let meta = print_string(meta.as_ref(), true);
+            format!("(with-meta {meta} {var})")
+        }
+        MalType::Func(_) | MalType::MalFunc { .. } => "#<function>".to_string(),
+        MalType::Nil => "nil".to_string(),
+        MalType::True => "true".to_string(),
+        MalType::False => "false".to_string(),
+        MalType::Symbol(s) => s.to_string(),
+        MalType::Number(n) => format!("{n}"),
+        MalType::String(s) => {
+            if print_readably {
+                format!("\"{}\"", escape_str(s))
+            } else {
+                s.clone()
+            }
+        }
+    }
+}
+
+fn escape_str(s: &str) -> String {
+    s.chars()
+        .map(|c| match c {
+            '"' => "\\\"".to_string(),
+            '\n' => "\\n".to_string(),
+            '\\' => "\\\\".to_string(),
+            _ => c.to_string(),
+        })
+        .collect::<Vec<String>>()
+        .join("")
+}
+
+pub fn print_seq(
+    seq: &[MalType],
+    print_readably: bool,
+    prefix: &str,
+    postfix: &str,
+    join_with: &str,
+) -> String {
+    let strs: Vec<String> = seq
+        .iter()
+        .map(|mt| print_string(mt, print_readably))
+        .collect();
+    format!("{}{}{}", prefix, strs.join(join_with), postfix)
 }

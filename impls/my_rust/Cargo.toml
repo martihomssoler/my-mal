@@ -2,6 +2,7 @@
 name = "my_rust"
 edition = "2021"
 version = "0.1.0"
+default-run = "step4_if_fn_do"
 
 [dependencies]
 rustyline = "14.0.0"

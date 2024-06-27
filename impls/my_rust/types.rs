@@ -1,4 +1,6 @@
-use std::{any::Any, ffi::c_void, fmt::Display};
+use std::{fmt::Display, ops::Deref};
+
+use crate::env::*;
 
 #[derive(Debug, Clone)]
 pub enum MalType {
@@ -8,8 +10,17 @@ pub enum MalType {
     Dictionary(Vec<MalType>),
     // primitives
     Number(i64),
+    String(String),
     Symbol(String),
-    Function(*const dyn Fn(usize, *const MalType) -> MalType),
+    True,
+    False,
+    Func(fn(Vec<MalType>) -> MalType),
+    MalFunc {
+        params: Box<MalType>,
+        body: Box<MalType>,
+        env: Option<Env>,
+        eval: fn(ast: MalType, env: Env) -> MalType,
+    },
     // Special symbols
     Quote(Box<MalType>),
     SpliceUnquote(Box<MalType>),
@@ -17,80 +28,28 @@ pub enum MalType {
     Unqoute(Box<MalType>),
     Deref(Box<MalType>),
     WithMeta(Box<MalType>, Box<MalType>),
-    None,
+    Nil,
 }
 
 unsafe impl Send for MalType {}
 unsafe impl Sync for MalType {}
 
-impl Display for MalType {
-    fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl MalType {
+    pub fn apply(&self, args: Vec<MalType>) -> MalType {
         match self {
-            MalType::List(list) => {
-                let mut res = String::new();
-
-                for (i, item) in list.iter().enumerate() {
-                    if i != 0 {
-                        res.push(' ');
-                    }
-                    res.push_str(format!("{item}").as_str());
-                }
-
-                write!(fmt, "({res})")
+            MalType::MalFunc {
+                params,
+                env,
+                eval,
+                body,
+            } => {
+                let fn_env = env_bind(env.clone(), params.deref().clone(), args);
+                eval(body.deref().clone(), fn_env)
             }
-            MalType::Vector(vector) => {
-                let mut res = String::new();
-
-                for (i, item) in vector.iter().enumerate() {
-                    if i != 0 {
-                        res.push(' ');
-                    }
-                    res.push_str(format!("{item}").as_str());
-                }
-
-                write!(fmt, "[{res}]")
+            _ => {
+                println!("Trying to call a non-function");
+                MalType::Nil
             }
-            MalType::Dictionary(dict) => {
-                let mut res = String::new();
-
-                for (i, item) in dict.iter().enumerate() {
-                    if i != 0 {
-                        res.push(' ');
-                    }
-                    res.push_str(format!("{item}").as_str());
-                }
-
-                write!(fmt, "{{{res}}}")
-            }
-            MalType::Number(n) => write!(fmt, "{n}"),
-            MalType::Symbol(s) => write!(fmt, "{s}"),
-            MalType::Quote(quote) => {
-                let res = quote.as_ref().to_string();
-                write!(fmt, "(quote {res})")
-            }
-            MalType::SpliceUnquote(splice_unquote) => {
-                let res = splice_unquote.as_ref().to_string();
-                write!(fmt, "(splice-unquote {res})")
-            }
-            MalType::Quasiquote(quasiquote) => {
-                let res = quasiquote.as_ref().to_string();
-                write!(fmt, "(quasiquote {res})")
-            }
-            MalType::Unqoute(unquote) => {
-                let res = unquote.as_ref().to_string();
-                write!(fmt, "(unquote {res})")
-            }
-            MalType::Deref(var) => {
-                let res = var.as_ref().to_string();
-                write!(fmt, "(deref {res})")
-            }
-            MalType::WithMeta(var, meta) => {
-                let var = var.as_ref().to_string();
-                let meta = meta.as_ref().to_string();
-                write!(fmt, "(with-meta {meta} {var})")
-            }
-            MalType::Function(_) => todo!(),
-            MalType::None => Ok(()),
         }
     }
 }
@@ -110,6 +69,7 @@ pub enum TokenKind {
     Operator(Operator),
     // Literals
     Number(i64),
+    String(String),
     // Others
     Identifier(String),
     LeftParenthesis,
@@ -148,6 +108,7 @@ impl Display for TokenKind {
             TokenKind::WithMeta => write!(fmt, "with-meta"),
             TokenKind::Deref => write!(fmt, "deref"),
             TokenKind::SpliceUnquote => write!(fmt, "spliceunquote"),
+            TokenKind::String(s) => write!(fmt, "{s}"),
         }
     }
 }

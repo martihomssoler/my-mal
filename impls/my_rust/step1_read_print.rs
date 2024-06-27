@@ -1,9 +1,11 @@
 extern crate rustyline;
 
+pub mod env;
 pub mod printer;
 pub mod reader;
 pub mod types;
 
+use env::*;
 use printer::*;
 use reader::*;
 use rustyline::{error::ReadlineError, DefaultEditor};

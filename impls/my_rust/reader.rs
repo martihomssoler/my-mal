@@ -1,15 +1,15 @@
 use std::collections::VecDeque;
 
-use crate::{MalType, Operator, Token, TokenKind};
+use crate::{print, MalType, Operator, Token, TokenKind};
 
 pub fn read_str(source: &str) -> MalType {
     let mut tokens = tokenize(source);
+    assert!(tokens.back().is_some_and(|t| t.kind == TokenKind::EOF));
 
     read_form(&mut tokens)
 }
 
 fn read_form(tokens: &mut VecDeque<Token>) -> MalType {
-    // println!("{tokens:?}");
     match tokens.front().unwrap().kind {
         TokenKind::LeftParenthesis => {
             tokens.pop_front();
@@ -49,7 +49,6 @@ fn read_form(tokens: &mut VecDeque<Token>) -> MalType {
             tokens.pop_front();
             MalType::WithMeta(Box::new(read_form(tokens)), Box::new(read_form(tokens)))
         }
-        TokenKind::EOF => MalType::Symbol("EOF".to_string()),
         _ => read_atom(tokens),
     }
 }
@@ -59,11 +58,7 @@ fn read_collection(tokens: &mut VecDeque<Token>, end_token: &str) -> Vec<MalType
 
     loop {
         match read_form(tokens) {
-            MalType::Symbol(s) if s.eq(end_token) => break,
-            MalType::Symbol(s) if s.eq("EOF") => {
-                collection.push(MalType::Symbol(s));
-                break;
-            }
+            MalType::Symbol(s) if s.eq("EOF") || s.eq(end_token) => break,
             mt => collection.push(mt),
         }
     }
@@ -75,7 +70,12 @@ fn read_atom(tokens: &mut VecDeque<Token>) -> MalType {
     match tokens.pop_front() {
         Some(token) => match token.kind {
             TokenKind::Number(n) => MalType::Number(n),
+            TokenKind::Identifier(id) if id.eq("true") => MalType::True,
+            TokenKind::Identifier(id) if id.eq("false") => MalType::False,
+            TokenKind::Identifier(id) if id.eq("nil") => MalType::Nil,
             TokenKind::Identifier(id) => MalType::Symbol(id),
+            TokenKind::String(s) => MalType::String(s),
+            TokenKind::EOF => MalType::Symbol("EOF".to_string()),
             _ => MalType::Symbol(token.kind.to_string()),
         },
         None => todo!(),
@@ -182,24 +182,46 @@ fn tokenize(source: &str) -> VecDeque<Token> {
 }
 
 fn parse_string(
-    c: char,
+    _c: char,
     iter: &mut std::iter::Peekable<std::str::Chars<'_>>,
     col: &mut usize,
 ) -> TokenKind {
     let mut can_escape = false;
-    let mut id = c.to_string();
+    let mut id = String::new();
     while let Some(c) = iter.peek() {
+        // replace("\\\\", "\\")
+        // replace("\\\"", "\"")
+        // replace("\\n", "\n")
+        let ch = if can_escape {
+            match c {
+                '\\' => {
+                    id.pop();
+                    '\\'
+                }
+                'n' => {
+                    id.pop();
+                    '\n'
+                }
+                '\"' => {
+                    id.pop();
+                    '\"'
+                }
+                _ => *c,
+            }
+        } else {
+            *c
+        };
+
         let is_str_ending = !can_escape && c.eq(&'"');
-
         can_escape = !can_escape && c.eq(&'\\');
-
-        id.push(*c);
         iter.next();
         *col += 1;
 
         if is_str_ending {
-            return TokenKind::Identifier(id);
+            return TokenKind::String(id);
         }
+
+        id.push(ch);
     }
     TokenKind::EOF
 }

@@ -159,7 +159,7 @@ pub fn main() {
 
     loop {
         match rep(&mut rl, &mut repl_env) {
-            Ok(line) => {
+            Ok(line) if !line.is_empty() => {
                 println!("{line}");
             }
             Err(ReadlineError::Interrupted) => continue,
@@ -168,6 +168,7 @@ pub fn main() {
                 println!("Error: {:?}", err);
                 break;
             }
+            _ => (),
         }
     }
 }
