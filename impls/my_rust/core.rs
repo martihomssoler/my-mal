@@ -67,8 +67,6 @@ fn add(args: Vec<MalType>) -> MalType {
 }
 
 fn sub(args: Vec<MalType>) -> MalType {
-    println!("{args:?}");
-
     if args.is_empty() {
         return MalType::Nil;
     }
