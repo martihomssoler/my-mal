@@ -10,7 +10,7 @@ type FuncTuple = (
     fn(std::vec::Vec<types::MalType>) -> types::MalType,
 );
 
-const NS: [FuncTuple; 24] = [
+const NS: [FuncTuple; 27] = [
     ("+", core::add),
     ("-", core::sub),
     ("*", core::mul),
@@ -35,6 +35,9 @@ const NS: [FuncTuple; 24] = [
     ("deref", core::deref),
     ("reset!", core::reset),
     ("swap!", core::swap),
+    ("cons", core::cons),
+    ("concat", core::concat),
+    ("vec", core::vec),
 ];
 
 pub fn core_env() -> Env {
@@ -456,5 +459,61 @@ fn swap(args: Vec<MalType>) -> MalType {
             );
             MalType::Nil
         }
+    }
+}
+
+fn cons(args: Vec<MalType>) -> MalType {
+    if args.len() < 2 {
+        println!(
+            "Error: wrong number of arguments provided. Expected 2 or more, got {}",
+            args.len()
+        );
+        return MalType::Nil;
+    }
+
+    match &args[1] {
+        MalType::List(end) | MalType::Vector(end) => {
+            MalType::List([[args[0].clone()].to_vec(), end.clone()].concat())
+        }
+        _ => {
+            println!(
+                "Error: wrong argument type provided. Expected second argument to be List, got {}",
+                MalType::discriminant_name(&args[1])
+            );
+            MalType::Nil
+        }
+    }
+}
+
+fn concat(args: Vec<MalType>) -> MalType {
+    let mut res = Vec::new();
+
+    for (i, arg) in args.into_iter().enumerate() {
+        match arg {
+            MalType::List(end) | MalType::Vector(end) => res = [res, end].concat(),
+            _ => {
+                println!(
+                    "Error: wrong argument type provided. Expected argument #{} to be List, got {}",
+                    i,
+                    MalType::discriminant_name(&arg)
+                );
+                return MalType::Nil;
+            }
+        };
+    }
+
+    MalType::List(res)
+}
+
+fn vec(args: Vec<MalType>) -> MalType {
+    if args.len() != 1 {
+        return MalType::Vector([].to_vec());
+    }
+
+    let arg = args[0].clone();
+
+    match &arg {
+        MalType::List(v) | MalType::Vector(v) => MalType::Vector(v.to_owned()),
+        _ => MalType::Vector([arg].to_vec()),
     }
 }

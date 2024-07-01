@@ -4,7 +4,7 @@ use crate::{print_string, MalType};
 
 pub type Env = Rc<EnvStruct>;
 
-#[derive(Clone, Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EnvStruct {
     data: RefCell<HashMap<String, MalType>>,
     pub outer: Option<Env>,

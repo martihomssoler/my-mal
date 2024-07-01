@@ -4,7 +4,7 @@ use crate::env::*;
 
 pub type Atom = Rc<RefCell<MalType>>;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MalType {
     Atom(Atom),
     Dictionary(Vec<MalType>),
@@ -19,13 +19,9 @@ pub enum MalType {
     },
     Nil,
     Number(i64),
-    Quasiquote(Box<MalType>),
-    Quote(Box<MalType>),
-    SpliceUnquote(Box<MalType>),
     String(String),
     Symbol(String),
     True,
-    Unqoute(Box<MalType>),
     Vector(Vec<MalType>),
     WithMeta(Box<MalType>, Box<MalType>),
 }
@@ -52,13 +48,9 @@ impl MalType {
             MalType::MalFunc { .. } => "MalFunc".to_owned(),
             MalType::Nil => "Nil".to_owned(),
             MalType::Number(_) => "Number".to_owned(),
-            MalType::Quasiquote(_) => "Quasiquote".to_owned(),
-            MalType::Quote(_) => "Quote".to_owned(),
-            MalType::SpliceUnquote(_) => "SpliceUnquote".to_owned(),
             MalType::String(_) => "String".to_owned(),
             MalType::Symbol(_) => "Symbol".to_owned(),
             MalType::True => "True".to_owned(),
-            MalType::Unqoute(_) => "Unqoute".to_owned(),
             MalType::Vector(_) => "Vector".to_owned(),
             MalType::WithMeta(_, _) => "WithMeta".to_owned(),
         }

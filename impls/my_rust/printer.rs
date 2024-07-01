@@ -7,22 +7,6 @@ pub fn print_string(mal_type: &MalType, print_readably: bool) -> String {
         MalType::List(seq) => print_seq(seq, print_readably, "(", ")", " "),
         MalType::Vector(seq) => print_seq(seq, print_readably, "[", "]", " "),
         MalType::Dictionary(seq) => print_seq(seq, print_readably, "{", "}", " "),
-        MalType::Quote(quote) => {
-            let res = print_string(quote.as_ref(), true);
-            format!("(quote {res})")
-        }
-        MalType::SpliceUnquote(splice_unquote) => {
-            let res = print_string(splice_unquote.as_ref(), true);
-            format!("(splice-unquote {res})")
-        }
-        MalType::Quasiquote(quasiquote) => {
-            let res = print_string(quasiquote.as_ref(), true);
-            format!("(quasiquote {res})")
-        }
-        MalType::Unqoute(unquote) => {
-            let res = print_string(unquote.as_ref(), true);
-            format!("(unquote {res})")
-        }
         MalType::WithMeta(var, meta) => {
             let var = print_string(var.as_ref(), true);
             let meta = print_string(meta.as_ref(), true);

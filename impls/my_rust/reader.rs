@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 
-use crate::{print, MalType, Operator, Token, TokenKind};
+use crate::{MalType, Operator, Token, TokenKind};
 
 pub fn read_str(source: &str) -> MalType {
     let mut tokens = tokenize(source);
@@ -27,19 +27,25 @@ fn read_form(tokens: &mut VecDeque<Token>) -> MalType {
         }
         TokenKind::Quote => {
             tokens.pop_front();
-            MalType::Quote(Box::new(read_form(tokens)))
+            MalType::List([MalType::Symbol("quote".to_owned()), read_form(tokens)].to_vec())
         }
         TokenKind::SpliceUnquote => {
             tokens.pop_front();
-            MalType::SpliceUnquote(Box::new(read_form(tokens)))
+            MalType::List(
+                [
+                    MalType::Symbol("splice-unquote".to_owned()),
+                    read_form(tokens),
+                ]
+                .to_vec(),
+            )
         }
         TokenKind::Quasiquote => {
             tokens.pop_front();
-            MalType::Quasiquote(Box::new(read_form(tokens)))
+            MalType::List([MalType::Symbol("quasiquote".to_owned()), read_form(tokens)].to_vec())
         }
         TokenKind::Unquote => {
             tokens.pop_front();
-            MalType::Unqoute(Box::new(read_form(tokens)))
+            MalType::List([MalType::Symbol("unquote".to_owned()), read_form(tokens)].to_vec())
         }
         TokenKind::Deref => {
             tokens.pop_front();
@@ -242,6 +248,7 @@ fn parse_symbol(
         iter.next();
         *col += 1;
     }
+
     TokenKind::Identifier(id)
 }
 
