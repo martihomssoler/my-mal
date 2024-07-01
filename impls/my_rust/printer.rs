@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 use crate::MalType;
 
 pub fn print_string(mal_type: &MalType, print_readably: bool) -> String {
@@ -21,10 +23,6 @@ pub fn print_string(mal_type: &MalType, print_readably: bool) -> String {
             let res = print_string(unquote.as_ref(), true);
             format!("(unquote {res})")
         }
-        MalType::Deref(var) => {
-            let res = print_string(var.as_ref(), true);
-            format!("(deref {res})")
-        }
         MalType::WithMeta(var, meta) => {
             let var = print_string(var.as_ref(), true);
             let meta = print_string(meta.as_ref(), true);
@@ -42,6 +40,10 @@ pub fn print_string(mal_type: &MalType, print_readably: bool) -> String {
             } else {
                 s.clone()
             }
+        }
+        MalType::Atom(a) => {
+            let atom = print_string(a.deref().borrow().deref(), true);
+            format!("(atom {})", atom)
         }
     }
 }

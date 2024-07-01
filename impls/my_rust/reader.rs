@@ -43,7 +43,7 @@ fn read_form(tokens: &mut VecDeque<Token>) -> MalType {
         }
         TokenKind::Deref => {
             tokens.pop_front();
-            MalType::Deref(Box::new(read_form(tokens)))
+            MalType::List([MalType::Symbol("deref".to_owned()), read_form(tokens)].to_vec())
         }
         TokenKind::WithMeta => {
             tokens.pop_front();
@@ -125,8 +125,10 @@ fn tokenize(source: &str) -> VecDeque<Token> {
                 if iter.peek().is_some_and(|nt| '*'.eq(nt)) {
                     let _ = iter.next().unwrap();
                     TokenKind::Operator(Operator::DoubleStar)
-                } else {
+                } else if iter.peek().is_some_and(|nt| ' '.eq(nt)) {
                     TokenKind::Operator(Operator::Star)
+                } else {
+                    parse_symbol('*', &mut iter, &mut col)
                 }
             }
             '/' => TokenKind::Operator(Operator::Slash),
@@ -233,14 +235,7 @@ fn parse_symbol(
 ) -> TokenKind {
     let mut id = c.to_string();
     while let Some(c) = iter.peek() {
-        if c.eq(&'(')
-            || c.eq(&'[')
-            || c.eq(&'{')
-            || c.eq(&')')
-            || c.eq(&']')
-            || c.eq(&'}')
-            || c.eq(&' ')
-        {
+        if is_char_symbol_separator(c) {
             break;
         }
         id.push(*c);
@@ -283,4 +278,16 @@ fn parse_number(
         *col += 1;
     }
     number
+}
+
+fn is_char_symbol_separator(c: &char) -> bool {
+    c.eq(&'(')
+        || c.eq(&'[')
+        || c.eq(&'{')
+        || c.eq(&')')
+        || c.eq(&']')
+        || c.eq(&'}')
+        || c.eq(&' ')
+        || c.eq(&'\n')
+        || c.eq(&'\t')
 }

@@ -7,7 +7,7 @@ pub type Env = Rc<EnvStruct>;
 #[derive(Clone, Debug)]
 pub struct EnvStruct {
     data: RefCell<HashMap<String, MalType>>,
-    outer: Option<Env>,
+    pub outer: Option<Env>,
 }
 
 pub fn env_new(outer: Option<Env>) -> Env {

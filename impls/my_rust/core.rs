@@ -1,6 +1,8 @@
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
 //! TODO(mhs): Handle exceptions like divide by zero
 
+use std::{cell::RefCell, ops::Deref, rc::Rc};
+
 use super::*;
 
 type FuncTuple = (
@@ -8,7 +10,7 @@ type FuncTuple = (
     fn(std::vec::Vec<types::MalType>) -> types::MalType,
 );
 
-const NS: [FuncTuple; 17] = [
+const NS: [FuncTuple; 24] = [
     ("+", core::add),
     ("-", core::sub),
     ("*", core::mul),
@@ -17,6 +19,8 @@ const NS: [FuncTuple; 17] = [
     ("pr-str", core::pr_str),
     ("str", core::str),
     ("println", core::println),
+    ("read-string", core::read_string),
+    ("slurp", core::slurp),
     ("list", core::list),
     ("list?", core::is_list),
     ("empty?", core::is_empty),
@@ -26,6 +30,11 @@ const NS: [FuncTuple; 17] = [
     ("<=", core::lteq),
     (">", core::gt),
     (">=", core::gteq),
+    ("atom", core::atom),
+    ("atom?", core::is_atom),
+    ("deref", core::deref),
+    ("reset!", core::reset),
+    ("swap!", core::swap),
 ];
 
 pub fn core_env() -> Env {
@@ -158,6 +167,34 @@ fn println(args: Vec<MalType>) -> MalType {
     let s = print_seq(&args, false, "", "", " ");
     println!("{}", s);
     MalType::Nil
+}
+
+fn read_string(args: Vec<MalType>) -> MalType {
+    if args.is_empty() {
+        return MalType::Nil;
+    }
+
+    match &args[0] {
+        MalType::String(s) => reader::read_str(s),
+        _ => MalType::Nil,
+    }
+}
+
+fn slurp(args: Vec<MalType>) -> MalType {
+    if args.is_empty() {
+        return MalType::Nil;
+    }
+
+    match &args[0] {
+        MalType::String(s) => {
+            if let Ok(file_content) = std::fs::read_to_string(s) {
+                MalType::String(file_content)
+            } else {
+                MalType::Nil
+            }
+        }
+        _ => MalType::Nil,
+    }
 }
 
 fn list(args: Vec<MalType>) -> MalType {
@@ -316,5 +353,108 @@ fn gt(args: Vec<MalType>) -> MalType {
         MalType::True
     } else {
         MalType::False
+    }
+}
+
+fn atom(args: Vec<MalType>) -> MalType {
+    if args.len() != 1 {
+        println!(
+            "Error: wrong number of arguments provided. Expected 1, got {}",
+            args.len()
+        );
+        return MalType::Nil;
+    }
+
+    MalType::Atom(Rc::new(RefCell::new(args[0].clone())))
+}
+
+fn is_atom(args: Vec<MalType>) -> MalType {
+    if args.len() != 1 {
+        println!(
+            "Error: wrong number of arguments provided. Expected 1, got {}",
+            args.len()
+        );
+        return MalType::Nil;
+    }
+
+    MalType::boolean(matches!(args[0], MalType::Atom(_)))
+}
+
+fn deref(args: Vec<MalType>) -> MalType {
+    if args.len() != 1 {
+        println!(
+            "Error: wrong number of arguments provided. Expected 1, got {}",
+            args.len()
+        );
+        return MalType::Nil;
+    }
+
+    match &args[0] {
+        MalType::Atom(a) => a.deref().borrow().clone(),
+        _ => {
+            println!(
+                "Error: wrong argument type provided. Expected an Atom, got {}",
+                MalType::discriminant_name(&args[0])
+            );
+            MalType::Nil
+        }
+    }
+}
+
+fn reset(args: Vec<MalType>) -> MalType {
+    if args.len() != 2 {
+        println!(
+            "Error: wrong number of arguments provided. Expected 2, got {}",
+            args.len()
+        );
+        return MalType::Nil;
+    }
+
+    match &args[0] {
+        MalType::Atom(a) => {
+            a.deref().replace(args[1].clone());
+            args[1].clone()
+        }
+        _ => {
+            println!(
+                "Error: wrong argument type provided. Expected an Atom, got {}",
+                MalType::discriminant_name(&args[0])
+            );
+            MalType::Nil
+        }
+    }
+}
+
+// mal is single threaded, but in multithreaded Clojure swap promises atomic changes
+fn swap(args: Vec<MalType>) -> MalType {
+    if args.len() < 2 {
+        println!(
+            "Error: wrong number of arguments provided. Expected 2 or more, got {}",
+            args.len()
+        );
+        return MalType::Nil;
+    }
+
+    match (&args[0], &args[1]) {
+        (MalType::Atom(a), f @ MalType::MalFunc { .. })
+        | (MalType::Atom(a), f @ MalType::Func(_)) => {
+            let mut func_args = [deref([args[0].clone()].to_vec())].to_vec();
+            args.iter()
+                .skip(2)
+                .for_each(|arg| func_args.push(arg.clone()));
+
+            let new_value = f.apply(func_args);
+            a.deref().replace(new_value.clone());
+
+            new_value
+        }
+        _ => {
+            println!(
+                "Error: wrong argument type provided. Expected an Atom and a Function, got {} and {}",
+                MalType::discriminant_name(&args[0]),
+                MalType::discriminant_name(&args[1])
+            );
+            MalType::Nil
+        }
     }
 }

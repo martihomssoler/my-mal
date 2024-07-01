@@ -1,40 +1,69 @@
-use std::{fmt::Display, ops::Deref};
+use std::{cell::RefCell, fmt::Display, ops::Deref, rc::Rc};
 
 use crate::env::*;
 
+pub type Atom = Rc<RefCell<MalType>>;
+
 #[derive(Debug, Clone)]
 pub enum MalType {
-    // collections
-    List(Vec<MalType>),
-    Vector(Vec<MalType>),
+    Atom(Atom),
     Dictionary(Vec<MalType>),
-    // primitives
-    Number(i64),
-    String(String),
-    Symbol(String),
-    True,
     False,
     Func(fn(Vec<MalType>) -> MalType),
+    List(Vec<MalType>),
     MalFunc {
         params: Box<MalType>,
         body: Box<MalType>,
         env: Option<Env>,
         eval: fn(ast: MalType, env: Env) -> MalType,
     },
-    // Special symbols
+    Nil,
+    Number(i64),
+    Quasiquote(Box<MalType>),
     Quote(Box<MalType>),
     SpliceUnquote(Box<MalType>),
-    Quasiquote(Box<MalType>),
+    String(String),
+    Symbol(String),
+    True,
     Unqoute(Box<MalType>),
-    Deref(Box<MalType>),
+    Vector(Vec<MalType>),
     WithMeta(Box<MalType>, Box<MalType>),
-    Nil,
 }
 
 unsafe impl Send for MalType {}
 unsafe impl Sync for MalType {}
 
 impl MalType {
+    pub fn boolean(value: bool) -> MalType {
+        if value {
+            MalType::True
+        } else {
+            MalType::False
+        }
+    }
+
+    pub fn discriminant_name(value: &MalType) -> String {
+        match value {
+            MalType::Atom(_) => "Atom".to_owned(),
+            MalType::Dictionary(_) => "Dictionary".to_owned(),
+            MalType::False => "False".to_owned(),
+            MalType::Func(_) => "Func".to_owned(),
+            MalType::List(_) => "List".to_owned(),
+            MalType::MalFunc { .. } => "MalFunc".to_owned(),
+            MalType::Nil => "Nil".to_owned(),
+            MalType::Number(_) => "Number".to_owned(),
+            MalType::Quasiquote(_) => "Quasiquote".to_owned(),
+            MalType::Quote(_) => "Quote".to_owned(),
+            MalType::SpliceUnquote(_) => "SpliceUnquote".to_owned(),
+            MalType::String(_) => "String".to_owned(),
+            MalType::Symbol(_) => "Symbol".to_owned(),
+            MalType::True => "True".to_owned(),
+            MalType::Unqoute(_) => "Unqoute".to_owned(),
+            MalType::Vector(_) => "Vector".to_owned(),
+            MalType::WithMeta(_, _) => "WithMeta".to_owned(),
+        }
+    }
+
     pub fn apply(&self, args: Vec<MalType>) -> MalType {
         match self {
             MalType::MalFunc {
@@ -46,6 +75,7 @@ impl MalType {
                 let fn_env = env_bind(env.clone(), params.deref().clone(), args);
                 eval(body.deref().clone(), fn_env)
             }
+            MalType::Func(f) => (f)(args),
             _ => {
                 println!("Trying to call a non-function");
                 MalType::Nil
