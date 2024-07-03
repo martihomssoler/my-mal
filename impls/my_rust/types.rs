@@ -1,6 +1,6 @@
 use std::{cell::RefCell, fmt::Display, ops::Deref, rc::Rc};
 
-use crate::env::*;
+use crate::{env::*, print_string};
 
 pub type Atom = Rc<RefCell<MalType>>;
 
@@ -73,6 +73,12 @@ impl MalType {
                 MalType::Nil
             }
         }
+    }
+}
+
+impl Display for MalType {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(fmt, "{}", print_string(self, true))
     }
 }
 

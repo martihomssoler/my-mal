@@ -20,6 +20,54 @@ fn read(line: &str) -> MalType {
     read_str(line)
 }
 
+fn quasiquote(ast: &MalType) -> MalType {
+    match ast {
+        MalType::List(ast_list)
+            if !ast_list.is_empty() && ast_list[0] == MalType::Symbol("unquote".to_owned()) =>
+        {
+            ast_list[1].clone()
+        }
+        MalType::List(ast_list) => qq_iter(ast_list),
+        MalType::Vector(ast_vec) => {
+            MalType::List([MalType::Symbol("vec".to_owned()), qq_iter(ast_vec)].to_vec())
+        }
+        MalType::Dictionary(_) | MalType::Symbol(_) => {
+            MalType::List([MalType::Symbol("quote".to_owned()), ast.clone()].to_vec())
+        }
+        _ => ast.clone(),
+    }
+}
+
+fn qq_iter(ast_list: &[MalType]) -> MalType {
+    let mut res = Vec::new();
+
+    for elem in ast_list.iter().rev() {
+        match elem {
+            MalType::List(elem_list)
+                if !elem_list.is_empty()
+                    && elem_list[0] == MalType::Symbol("splice-unquote".to_owned()) =>
+            {
+                res = [
+                    MalType::Symbol("concat".to_owned()),
+                    elem_list[1].clone(),
+                    MalType::List(res),
+                ]
+                .to_vec();
+            }
+            _ => {
+                res = [
+                    MalType::Symbol("cons".to_owned()),
+                    quasiquote(elem),
+                    MalType::List(res),
+                ]
+                .to_vec();
+            }
+        }
+    }
+
+    MalType::List(res)
+}
+
 fn eval(mut ast: MalType, mut env: Env) -> MalType {
     loop {
         match ast {
@@ -28,86 +76,14 @@ fn eval(mut ast: MalType, mut env: Env) -> MalType {
                 let first_elem = &list[0];
 
                 match first_elem {
-                    MalType::Symbol(qqexpand_symbol) if qqexpand_symbol.eq("quasiquoteexpand") => {
-                        let ast = list[1].to_owned();
-                        return eval(
-                            MalType::List([MalType::Symbol("quasiquote".to_owned()), ast].to_vec()),
-                            env.clone(),
-                        );
-                    }
                     MalType::Symbol(quote_symbol) if quote_symbol.eq("quote") => {
                         return list[1].to_owned();
                     }
-                    MalType::Symbol(unquote_symbol) if unquote_symbol.eq("unquote") => {
-                        ast = list[1].clone();
+                    MalType::Symbol(qqexpand_symbol) if qqexpand_symbol.eq("quasiquoteexpand") => {
+                        return quasiquote(&list[1]);
                     }
                     MalType::Symbol(quasiquote_symbol) if quasiquote_symbol.eq("quasiquote") => {
-                        let quasiquote_ast = list[1].to_owned();
-
-                        match quasiquote_ast {
-                            MalType::Vector(ref ast_vec) => {
-                                let mut vec_as_list = [MalType::Symbol("vec".to_owned())].to_vec();
-
-                                for ast_i in ast_vec {
-                                    let evaled = eval(ast_i.clone(), env.clone());
-                                    vec_as_list.push(evaled);
-                                }
-
-                                let vec_as_list = eval(MalType::List(vec_as_list), env.clone());
-                                // println!("{}", print_string(&vec_as_list, true));
-                                return vec_as_list;
-                            }
-                            MalType::List(ast_list)
-                                if !ast_list.is_empty()
-                                    && ast_list[0] == MalType::Symbol("unquote".to_owned()) =>
-                            {
-                                ast = ast_list[1].clone();
-                            }
-                            MalType::List(ast_list) => {
-                                let mut res = Vec::new();
-
-                                for elem in ast_list.into_iter().rev() {
-                                    match elem {
-                                        MalType::List(elem_list)
-                                            if !elem_list.is_empty()
-                                                && elem_list[0]
-                                                    == MalType::Symbol(
-                                                        "splice-unquote".to_owned(),
-                                                    ) =>
-                                        {
-                                            res = [
-                                                MalType::Symbol("concat".to_owned()),
-                                                elem_list[1].clone(),
-                                                MalType::List(res),
-                                            ]
-                                            .to_vec();
-                                        }
-                                        _ => {
-                                            res = [
-                                                MalType::Symbol("cons".to_owned()),
-                                                MalType::List(
-                                                    [
-                                                        MalType::Symbol("quasiquote".to_owned()),
-                                                        elem,
-                                                    ]
-                                                    .to_vec(),
-                                                ),
-                                                MalType::List(res),
-                                            ]
-                                            .to_vec();
-                                        }
-                                    }
-                                }
-
-                                ast = MalType::List(res);
-                            }
-                            MalType::Dictionary(_) | MalType::Symbol(_) => {
-                                ast = MalType::List(
-                                    [MalType::Symbol("quote".to_owned()), quasiquote_ast].to_vec(),
-                                );
-                            }
-                            _ => ast = quasiquote_ast,
-                        }
+                        ast = quasiquote(&list[1]);
                     }
                     MalType::Symbol(eval_symbol) if eval_symbol.eq("eval") => {
                         ast = eval(list[1].clone(), env.clone());
