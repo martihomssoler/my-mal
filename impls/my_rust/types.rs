@@ -16,6 +16,7 @@ pub enum MalType {
         body: Box<MalType>,
         env: Option<Env>,
         eval: fn(ast: MalType, env: Env) -> MalType,
+        is_macro: bool,
     },
     Nil,
     Number(i64),
@@ -63,6 +64,7 @@ impl MalType {
                 env,
                 eval,
                 body,
+                is_macro,
             } => {
                 let fn_env = env_bind(env.clone(), params.deref().clone(), args);
                 eval(body.deref().clone(), fn_env)

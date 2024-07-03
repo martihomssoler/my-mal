@@ -10,7 +10,7 @@ type FuncTuple = (
     fn(std::vec::Vec<types::MalType>) -> types::MalType,
 );
 
-const NS: [FuncTuple; 27] = [
+const NS: [FuncTuple; 30] = [
     ("+", core::add),
     ("-", core::sub),
     ("*", core::mul),
@@ -38,6 +38,9 @@ const NS: [FuncTuple; 27] = [
     ("cons", core::cons),
     ("concat", core::concat),
     ("vec", core::vec),
+    ("nth", core::nth),
+    ("first", core::first),
+    ("rest", core::rest),
 ];
 
 pub fn core_env() -> Env {
@@ -515,5 +518,84 @@ fn vec(args: Vec<MalType>) -> MalType {
     match &arg {
         MalType::List(v) | MalType::Vector(v) => MalType::Vector(v.to_owned()),
         _ => MalType::Vector([arg].to_vec()),
+    }
+}
+
+fn nth(args: Vec<MalType>) -> MalType {
+    if args.len() != 2 {
+        println!(
+            "Error: wrong number of arguments provided. Expected 2 or more, got {}",
+            args.len()
+        );
+        return MalType::Nil;
+    }
+
+    match (&args[0], &args[1]) {
+        (MalType::List(collection), MalType::Number(i))
+        | (MalType::Vector(collection), MalType::Number(i)) => {
+            if *i as usize >= collection.len() {
+                MalType::Nil
+            } else {
+                collection[*i as usize].clone()
+            }
+        }
+        _ => {
+            println!(
+                "Error: wrong argument type provided. Expected a List/Vector and a Number, got {} and {}",
+                MalType::discriminant_name(&args[0]),
+                MalType::discriminant_name(&args[1])
+            );
+            MalType::Nil
+        }
+    }
+}
+
+fn first(args: Vec<MalType>) -> MalType {
+    if args.len() != 1 {
+        return MalType::Nil;
+    }
+
+    let arg = args[0].clone();
+
+    match &arg {
+        MalType::List(v) | MalType::Vector(v) => {
+            if v.is_empty() {
+                MalType::Nil
+            } else {
+                v[0].clone()
+            }
+        }
+        _ => {
+            println!(
+                "Error: wrong argument type provided. Expected a List/Vector, got {}",
+                MalType::discriminant_name(&args[0]),
+            );
+            MalType::Nil
+        }
+    }
+}
+
+fn rest(args: Vec<MalType>) -> MalType {
+    if args.len() != 1 {
+        return MalType::List(Vec::new());
+    }
+
+    let arg = args[0].clone();
+
+    match &arg {
+        MalType::List(v) | MalType::Vector(v) => {
+            if v.is_empty() {
+                MalType::List(Vec::new())
+            } else {
+                MalType::List(v.iter().skip(1).cloned().collect())
+            }
+        }
+        _ => {
+            println!(
+                "Error: wrong argument type provided. Expected a List/Vector, got {}",
+                MalType::discriminant_name(&args[0]),
+            );
+            MalType::List(Vec::new())
+        }
     }
 }
